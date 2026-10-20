@@ -280,6 +280,8 @@ Running `pi update` without a target updates Pi itself.
 
 Add `--force` to reinstall Pi when the selected update includes Pi.
 
+`pi update` never asks for project trust. It updates project packages only when the project's trust is saved, with `/trust` or the trust prompt, or when you pass `--approve`. Otherwise it skips them and prints a warning.
+
 `pi update` cannot update Pi when another package manager provides it, such as Nix. Update Pi with that package manager, for example `nix profile upgrade pi`. Package and model catalog updates still work.
 
 ### Aliases and command options

@@ -1038,6 +1038,15 @@ export async function handlePackageCommand(
 					);
 				}
 				if (updateTargetIncludesExtensions(target)) {
+					// Update only uses saved trust, so a project trusted for one session or by default is skipped.
+					if (!settingsManager.isProjectTrusted() && options.projectTrustOverride === undefined) {
+						const projectPackages = SettingsManager.create(cwd, agentDir).getProjectSettings().packages ?? [];
+						if (projectPackages.length > 0) {
+							reportProjectTrustWarnings([
+								`Project packages in ${join(cwd, CONFIG_DIR_NAME, "settings.json")} are skipped because the project is not trusted. Use --approve, or run /trust in ${APP_NAME} to save trust.`,
+							]);
+						}
+					}
 					const updateSource = target.type === "extensions" ? target.source : undefined;
 					await packageManager.update(updateSource);
 					if (updateSource) {

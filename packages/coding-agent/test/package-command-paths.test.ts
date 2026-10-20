@@ -369,6 +369,43 @@ if (process.platform !== "win32") fs.chmodSync(piPath, 0o755);
 		}
 	});
 
+	// #8971, #11193
+	it("warns when update skips packages of an untrusted project", async () => {
+		mkdirSync(join(projectDir, ".pi"), { recursive: true });
+		const fakeNpmPath = join(tempDir, "fake-untrusted-project-npm.cjs");
+		const recordPath = join(tempDir, "untrusted-project-update.json");
+		writeFileSync(
+			fakeNpmPath,
+			`const fs=require("node:fs");fs.writeFileSync(${JSON.stringify(recordPath)},JSON.stringify(process.argv.slice(2)));`,
+		);
+		writeFileSync(
+			join(projectDir, ".pi", "settings.json"),
+			JSON.stringify({ packages: ["npm:fake-package"], npmCommand: [originalExecPath, fakeNpmPath] }),
+		);
+		const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+		const errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+
+		try {
+			await expect(main(["update", "--extensions"])).resolves.toBeUndefined();
+
+			expect(existsSync(recordPath)).toBe(false);
+			const stderr = errorSpy.mock.calls.map(([message]) => String(message)).join("\n");
+			expect(stderr).toContain(
+				`Project packages in ${join(realpathSync(projectDir), ".pi", "settings.json")} are skipped`,
+			);
+			expect(stderr).toContain("--approve");
+			expect(process.exitCode).toBeUndefined();
+
+			// --no-approve asks to ignore the project, so there is nothing to warn about.
+			errorSpy.mockClear();
+			await expect(main(["update", "--extensions", "--no-approve"])).resolves.toBeUndefined();
+			expect(errorSpy).not.toHaveBeenCalled();
+		} finally {
+			logSpy.mockRestore();
+			errorSpy.mockRestore();
+		}
+	});
+
 	it("uses saved project trust during update", async () => {
 		mkdirSync(join(projectDir, ".pi"), { recursive: true });
 		const fakeNpmPath = join(tempDir, "fake-trusted-project-npm.cjs");
